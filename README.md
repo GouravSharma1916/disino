@@ -1,12 +1,12 @@
 # Disino
 
-Disino is an AI engineering project-rescue agent that connects GitHub, Slack, and Notion to detect ownership drift on critical engineering work.
+Disino is an AI-first engineering project-rescue agent that connects GitHub, Slack, and Notion to detect ownership drift on critical engineering work, reason over evidence, safely intervene, and verify that the rescue actually happened.
 
 ## A. PROJECT OVERVIEW
 
 ### What We Built
 
-Disino investigates a release or task, compares the planned owner with evidence of the person actually carrying the work, challenges its own conclusion, applies a safety policy, and can perform and verify a corrective action.
+Disino owns the workflow from user goal to verified outcome: it investigates a release or task, gathers evidence from multiple systems, evaluates what evidence matters, detects contradictions, challenges its own conclusion, assigns confidence, applies a safety decision, performs a permitted corrective action, and verifies the resulting state.
 
 ### The Problem
 
@@ -15,6 +15,8 @@ Critical work can quietly change hands while the planning system still points to
 ### Core Workflow
 
 `UNDERSTAND -> INVESTIGATE -> DETECT -> CHALLENGE -> DECIDE -> ACT -> VERIFY`
+
+This lifecycle is the foundation we built. It represents an agent workflow, not a UI sequence around a one-shot model response.
 
 The web demo follows this flow:
 
@@ -32,13 +34,19 @@ Disino connects to all three external apps. Each provides a different part of th
 
 The adapters normalize API responses into the shared `Evidence` contract. Every item keeps its source, timestamp, content, related task, person when available, confidence, relevance, and missing/conflicting state.
 
-The investigation engine combines evidence deterministically. Recent explicit Slack handoffs can identify an operational owner. GitHub activity supplies engineering context but cannot establish ownership by itself. Missing, stale, or contradictory evidence lowers confidence and blocks unsafe rescue.
+The investigation engine combines evidence deterministically. The agent decides what evidence matters, while every claim remains grounded to actual source records with source, timestamp, content, and actor data where available. Recent explicit Slack handoffs can identify an operational owner. GitHub activity supplies engineering context but cannot establish ownership by itself. Missing, stale, or contradictory evidence lowers confidence and blocks unsafe rescue.
 
 ## AI-First Reasoning Approach
 
 The optional server-side OpenAI layer receives collected evidence and must reference collected evidence IDs. Its structured response identifies supporting, conflicting, and missing evidence, provides reasoning, and answers: "What evidence could prove this conclusion wrong?"
 
-The response is runtime-validated before use. If the model is unavailable or returns invalid evidence references, Disino falls back to the deterministic investigation decision and reports the AI error.
+The response is runtime-validated before use. The AI can reference only evidence IDs returned by the investigation, cannot invent source records or owners, and must explicitly state what could prove its conclusion wrong. If the model is unavailable or returns invalid evidence references or unsupported source claims, Disino falls back to the deterministic investigation decision and reports the AI error.
+
+## Why This Is AI-First
+
+Disino is not an LLM wrapper or chatbot. The model participates in the decision-making loop by reasoning over grounded evidence and contradictions, while deterministic server-side systems enforce evidence contracts, safety gates, external actions, response validation, and fresh verification. Confidence determines whether the agent can act; an external write is never assumed successful, so Disino reads the source systems again to verify the result.
+
+The complete loop is: user goal -> investigation -> evidence gathering -> evidence evaluation -> contradiction detection -> self-challenge -> confidence -> safety decision -> action -> fresh verification.
 
 ## Architecture
 
@@ -61,7 +69,7 @@ The UI only shows Rescue controls for permitted HIGH decisions or an explicit ME
 
 Permitted actions can update GitHub issue ownership, send a Slack ownership-correction notification, and update Notion task context. Each action returns a per-source success or failure result.
 
-Verification is separate from action execution. GitHub is re-read to confirm the assignee, Slack is searched for the returned Disino message, and Notion is re-read to compare the requested properties. Disino reports `Project Rescued` only when every required action succeeds and every required verification returns `verified: true`.
+Verification is separate from action execution. GitHub is re-read to confirm the assignee, Slack is read again to confirm the returned Disino message, and Notion is re-read to verify the requested owner state in the page content. Disino reports `Project Rescued` only when every required action succeeds and every required verification returns `verified: true`.
 
 ## C. SETUP INSTRUCTIONS
 
@@ -97,7 +105,7 @@ OPENAI_API_KEY=
 OPENAI_MODEL=
 ```
 
-Demo target variables configure the release/task queried by the UI:
+The `DISINO_*` target variables configure the specific release/task used for the hackathon demonstration:
 
 ```text
 DISINO_TASK_ID=
@@ -108,10 +116,10 @@ DISINO_GITHUB_ISSUE=
 DISINO_SLACK_QUERY=
 DISINO_SLACK_CHANNEL=
 DISINO_NOTION_OWNER_PROPERTY=
-DISINO_OPERATIONAL_OWNER=
+DISINO_GITHUB_OPERATIONAL_OWNER=
 ```
 
-Use actual resource IDs, repository names, channel names, and property names. Keep `.env.local` private; it is ignored by git.
+Use actual resource IDs, repository names, channel names, property names, and the actual GitHub login to assign. Keep `.env.local` private; it is ignored by git. A future production version can replace these fixed targets with connected-account and project discovery.
 
 ### Run
 
@@ -148,14 +156,18 @@ The suite covers these eight ownership scenarios:
 7. Multiple active contributors: uncertain and no unsafe action.
 8. Planned owner still clearly owns the work: no rescue.
 
-It also tests GitHub, Slack, and Notion unavailability, failed actions, failed fresh verification, and duplicate rescue requests. External actions are never treated as verified from the action response alone; each required state is checked with a fresh API read-back.
+The suite covers eight core ownership scenarios plus integration-unavailability, failed-action, failed-verification, and duplicate-request cases. External actions are never treated as verified from the action response alone; each required state is checked with a fresh API read-back.
 
 Actual result from the final evaluation run:
 
 ```text
-11 passed
+13 passed
 0 failed
 ```
+
+## Future Direction
+
+This is the first AI-first foundation of a broader engineering-agent product. Future versions can expand from the current configured hackathon scenario toward connected-account and project discovery, broader engineering workflows, persistent task context, and additional autonomous engineering actions. Those capabilities are not part of the current implementation.
 
 ## Limitations / Demo Notes
 
@@ -167,6 +179,8 @@ Actual result from the final evaluation run:
 
 ## E. DEMO VIDEO
 
-DEMO VIDEO: PASTE DEMO VIDEO LINK HERE
+**Live Demo:** [Open Disino](https://disino.vercel.app/)
 
-The final demo video will be no longer than two minutes.
+**Demo Video:** [Watch the 2-minute Disino demo](https://drive.google.com/file/d/1YyaDxF_tD9ZMXGJ1BGTiWoo0yL0pNzI8/view?usp=sharing)
+
+The demo demonstrates the complete investigation, rescue, and verification flow using the configured hackathon scenario.

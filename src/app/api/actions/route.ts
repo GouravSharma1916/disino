@@ -3,8 +3,9 @@ import type { OwnershipDecision } from "@/domain/contracts";
 import { executeCorrectiveActions } from "@/server/actions";
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as { decision?: OwnershipDecision; approved?: boolean };
+  const body = (await request.json()) as { investigationId?: string; decision?: OwnershipDecision; approved?: boolean };
   if (!body.decision) return NextResponse.json({ error: "A decision is required." }, { status: 400 });
+  if (!body.investigationId) return NextResponse.json({ error: "An investigation ID is required." }, { status: 400 });
 
   const owner = body.decision.operationalOwner?.handle ?? body.decision.operationalOwner?.name;
   const githubOperationalOwner = process.env.DISINO_GITHUB_OPERATIONAL_OWNER ?? "";
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     : [];
 
   const result = await executeCorrectiveActions({
-    rescueRequestId: `release-task-${owner ?? "unassigned"}`,
+    rescueRequestId: body.investigationId,
     decision: body.decision,
     actions,
     approved: body.approved === true,

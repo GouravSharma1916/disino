@@ -289,4 +289,26 @@ describe("Disino deterministic evaluation", () => {
     assert.equal(second.status, "blocked");
     assert.equal(patchCount, 1);
   });
+
+  it("allows a fresh investigation rescue after a prior rescue for the same owner", async () => {
+    let patchCount = 0;
+    globalThis.fetch = async (input, init) => {
+      if (String(input).includes("api.github.com") && init?.method === "PATCH") patchCount += 1;
+      return response({ id: "issue-1", assignees: [{ login: "alice" }] });
+    };
+    const firstInvestigationPlan = {
+      rescueRequestId: "fresh-investigation-1",
+      decision: highDecision(),
+      actions: [action("fresh-investigation-action-1")],
+      github: { owner: "org", repository: "repo", issueNumber: 1, assignee: "alice" },
+    };
+    const secondInvestigationPlan = {
+      ...firstInvestigationPlan,
+      rescueRequestId: "fresh-investigation-2",
+      actions: [action("fresh-investigation-action-2")],
+    };
+    assert.equal((await executeCorrectiveActions(firstInvestigationPlan)).status, "succeeded");
+    assert.equal((await executeCorrectiveActions(secondInvestigationPlan)).status, "succeeded");
+    assert.equal(patchCount, 2);
+  });
 });

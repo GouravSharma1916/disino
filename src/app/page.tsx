@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Stage = "idle" | "investigating" | "analyzing" | "ready" | "acting" | "verifying" | "done" | "error";
 type Source = "notion" | "github" | "slack";
@@ -30,6 +30,7 @@ type Decision = {
 };
 
 type Investigation = {
+  investigationId: string;
   taskId: string;
   status: string;
   evidence: Evidence[];
@@ -69,10 +70,15 @@ export default function Home() {
   const [progressStages, setProgressStages] = useState<string[]>([]);
   const [currentProgress, setCurrentProgress] = useState<string>();
   const [error, setError] = useState<string>();
+  const resultsRef = useRef<HTMLElement>(null);
 
   const decision = investigation?.ownershipDecision;
   const allowed = decision && decision.safetyLevel === "HIGH";
   const rescueComplete = stage === "done" && actions.length > 0 && actions.every((item) => item.status === "succeeded") && verification.length > 0 && verification.every((item) => item.verified);
+
+  useEffect(() => {
+    if (rescueComplete) resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [rescueComplete]);
 
   async function investigate() {
     setStage("investigating");
@@ -124,7 +130,7 @@ export default function Home() {
     setStage("acting");
     setError(undefined);
     try {
-      const actionResponse = await fetch("/api/actions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision, approved: explicitApproval }) });
+      const actionResponse = await fetch("/api/actions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ investigationId: investigation?.investigationId, decision, approved: explicitApproval }) });
       const actionPayload = await actionResponse.json();
       setActions(actionPayload.results ?? []);
       if (!actionResponse.ok || actionPayload.status === "blocked" || actionPayload.status === "failed") throw new Error("Corrective action was not confirmed.");
@@ -181,7 +187,7 @@ export default function Home() {
         <section className="reasoning-grid"><div className="panel reasoning-panel"><div className="section-label"><span>05</span> AI ANALYSIS</div><h2>Reasoning</h2><p>{decision?.reasoning}</p></div><div className="panel challenge-panel"><div className="section-label"><span>06</span> CHALLENGE</div><h2>What could prove this wrong?</h2><p>{decision?.challenge}</p></div></section>
       </>}
 
-      {(actions.length > 0 || verification.length > 0) && <section className="results-section"><div className="section-label"><span>07</span> RESCUE TRACE</div><div className="results-grid"><div className="panel result-panel"><h2>Action results</h2>{actions.map((item) => <div className="result-row" key={item.actionId}><span className={`result-icon ${item.status}`}>{item.status === "succeeded" ? "✓" : "!"}</span><div><strong>{sourceLabel(item.source)}</strong><p>{item.message}</p></div><b>{item.status}</b></div>)}</div><div className="panel result-panel"><h2>Read-back verification</h2>{verification.map((item) => <div className="result-row" key={item.actionId}><span className={`result-icon ${item.verified ? "succeeded" : "failed"}`}>{item.verified ? "✓" : "!"}</span><div><strong>{sourceLabel(item.source)}</strong><p><b>Expected:</b> {item.expectedState}<br /><b>Actual:</b> {item.actualState}</p></div></div>)}</div></div>{rescueComplete && <div className="success-banner"><span>✓</span><div><strong>Project Rescued</strong><p>Every required action was confirmed and read back from the source APIs.</p></div></div>}</section>}
+      {(actions.length > 0 || verification.length > 0) && <section className="results-section" ref={resultsRef}><div className="section-label"><span>07</span> RESCUE TRACE</div><div className="results-grid"><div className="panel result-panel"><h2>Action results</h2>{actions.map((item) => <div className="result-row" key={item.actionId}><span className={`result-icon ${item.status}`}>{item.status === "succeeded" ? "✓" : "!"}</span><div><strong>{sourceLabel(item.source)}</strong><p>{item.message}</p></div><b>{item.status}</b></div>)}</div><div className="panel result-panel"><h2>Read-back verification</h2>{verification.map((item) => <div className="result-row" key={item.actionId}><span className={`result-icon ${item.verified ? "succeeded" : "failed"}`}>{item.verified ? "✓" : "!"}</span><div><strong>{sourceLabel(item.source)}</strong><p><b>Expected:</b> {item.expectedState}<br /><b>Actual:</b> {item.actualState}</p></div></div>)}</div></div>{rescueComplete && <div className="success-banner"><span>✓</span><div><strong>Project Rescued</strong><p>Every required action was confirmed and read back from the source APIs.</p></div></div>}</section>}
     </main>
   );
 }
