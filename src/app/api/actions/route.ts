@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import type { OwnershipDecision } from "@/domain/contracts";
 import { executeCorrectiveActions } from "@/server/actions";
+import { liveDemoDisabledResponse } from "@/server/live-demo";
 
 export async function POST(request: Request) {
+  const disabledResponse = liveDemoDisabledResponse();
+  if (disabledResponse) return disabledResponse;
+
   const body = (await request.json()) as { investigationId?: string; decision?: OwnershipDecision; approved?: boolean };
   if (!body.decision) return NextResponse.json({ error: "A decision is required." }, { status: 400 });
   if (!body.investigationId) return NextResponse.json({ error: "An investigation ID is required." }, { status: 400 });
@@ -41,6 +45,7 @@ export async function POST(request: Request) {
   });
   return NextResponse.json({
     ...result,
+    rescueRequestId: body.investigationId,
     verification: {
       actions,
       github: {

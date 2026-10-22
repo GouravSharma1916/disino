@@ -119,6 +119,8 @@ DISINO_NOTION_OWNER_PROPERTY=
 DISINO_GITHUB_OPERATIONAL_OWNER=
 ```
 
+The connected demo is disabled by default. For a trusted local demo only, set both `DISINO_ENABLE_LIVE_DEMO=true` and `NEXT_PUBLIC_DISINO_LIVE_DEMO=true`. The server flag gates investigation, action, and verification routes; the public flag only controls whether the browser shows the demo controls. Do not enable the live demo on a public deployment: authentication and per-user authorization are not implemented, and enabled actions can write to connected GitHub, Slack, and Notion resources.
+
 Use actual resource IDs, repository names, channel names, property names, and the actual GitHub login to assign. Keep `.env.local` private; it is ignored by git. A future production version can replace these fixed targets with connected-account and project discovery.
 
 ### Run
@@ -127,7 +129,7 @@ Use actual resource IDs, repository names, channel names, property names, and th
 npm run dev
 ```
 
-Open `http://localhost:3000`, select **Investigate Release**, review the evidence and safety decision, then use the permitted rescue control. A real connected environment is required for external API actions and read-back verification.
+Open `http://localhost:3000`. The public-facing page shows a product overview while the connected demo remains disabled unless explicitly enabled for a trusted local run. A real connected environment is required for external API actions and read-back verification.
 
 ## Demo Flow
 

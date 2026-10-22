@@ -30,6 +30,11 @@ export interface CorrectiveActionPlan {
 const activeRescueRequests = new Set<string>();
 const confirmedRescueRequests = new Set<string>();
 
+export function finalizeRescueRequest(requestId: string, verified: boolean): void {
+  activeRescueRequests.delete(requestId);
+  if (verified) confirmedRescueRequests.add(requestId);
+}
+
 function notAttempted(actions: Action[], message: string): ActionResult[] {
   return actions.map((action) => ({
     actionId: action.id,
@@ -105,9 +110,8 @@ export async function executeCorrectiveActions(
     results,
   };
   if (plan.rescueRequestId) {
-    activeRescueRequests.delete(plan.rescueRequestId);
-    if (result.status === "succeeded") {
-      confirmedRescueRequests.add(plan.rescueRequestId);
+    if (result.status !== "succeeded") {
+      activeRescueRequests.delete(plan.rescueRequestId);
     }
   }
   return result;

@@ -4,7 +4,7 @@ import type {
   Action,
   OwnershipDecision,
 } from "@/domain/contracts";
-import { executeCorrectiveActions } from "@/server/actions";
+import { executeCorrectiveActions, finalizeRescueRequest } from "@/server/actions";
 import { investigateOwnership } from "@/server/investigation";
 import { enforceSafety } from "@/server/safety";
 import { verifyCorrectiveActions } from "@/server/verification";
@@ -284,6 +284,7 @@ describe("Disino deterministic evaluation", () => {
       github: { owner: "org", repository: "repo", issueNumber: 1, assignee: "alice" },
     };
     const first = await executeCorrectiveActions(plan);
+    finalizeRescueRequest(plan.rescueRequestId, true);
     const second = await executeCorrectiveActions(plan);
     assert.equal(first.status, "succeeded");
     assert.equal(second.status, "blocked");
@@ -309,6 +310,24 @@ describe("Disino deterministic evaluation", () => {
     };
     assert.equal((await executeCorrectiveActions(firstInvestigationPlan)).status, "succeeded");
     assert.equal((await executeCorrectiveActions(secondInvestigationPlan)).status, "succeeded");
+    assert.equal(patchCount, 2);
+  });
+
+  it("allows retry after actions succeed but verification fails", async () => {
+    let patchCount = 0;
+    globalThis.fetch = async (input, init) => {
+      if (String(input).includes("api.github.com") && init?.method === "PATCH") patchCount += 1;
+      return response({ id: "issue-1", assignees: [{ login: "alice" }] });
+    };
+    const plan = {
+      rescueRequestId: "verification-failed-request",
+      decision: highDecision(),
+      actions: [action("verification-failed-action")],
+      github: { owner: "org", repository: "repo", issueNumber: 1, assignee: "alice" },
+    };
+    assert.equal((await executeCorrectiveActions(plan)).status, "succeeded");
+    finalizeRescueRequest(plan.rescueRequestId, false);
+    assert.equal((await executeCorrectiveActions(plan)).status, "succeeded");
     assert.equal(patchCount, 2);
   });
 });

@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { investigateOwnership } from "@/server/investigation";
 import { enforceSafety } from "@/server/safety";
 import { reasonAboutInvestigation } from "@/server/ai/reasoning";
+import { liveDemoDisabledResponse } from "@/server/live-demo";
 
 export async function POST() {
+  const disabledResponse = liveDemoDisabledResponse();
+  if (disabledResponse) return disabledResponse;
+
   const required = {
     taskId: process.env.DISINO_TASK_ID,
     notionPageId: process.env.DISINO_NOTION_PAGE_ID,
